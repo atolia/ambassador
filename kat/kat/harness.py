@@ -1130,6 +1130,9 @@ class Runner:
 
                 break
             else:
+                print("SLEEPING for two minutes after requirements")
+                time.sleep(120)
+
                 return
 
         print("requirements not satisfied in %s seconds:" % limit)
@@ -1239,7 +1242,8 @@ class Runner:
 
         for phase in phases:
             if phase != 1:
-                phase_delay = int(os.environ.get("KAT_PHASE_DELAY", 10))
+                # phase_delay = int(os.environ.get("KAT_PHASE_DELAY", 10))
+                phase_delay = 120
                 print("Waiting for {} seconds before starting phase {}...".format(phase_delay, phase))
                 time.sleep(phase_delay)
 
