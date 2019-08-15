@@ -514,7 +514,8 @@ class Result:
                         fs2 = f'involvedObject.namespace={self.parent.namespace}'
 
                         cmd = f'kubectl get events -o json --field-selector "{fs1}" --field-selector "{fs2}"'
-                        os.system(f'{cmd} >{event_path} 2>&1')
+                        os.system(f'echo ==== "{cmd}" >{event_path}')
+                        os.system(f'{cmd} >>{event_path} 2>&1')
 
                 assert self.query.expected == self.status, \
                        "%s: expected status code %s, got %s instead with error %s" % (

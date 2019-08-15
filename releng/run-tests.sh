@@ -64,6 +64,9 @@ for el in "${seq[@]}"; do
         k_args="-k $el"
     fi
 
+    set +e
+    set -x
+
     outdirbase="kat-log-${hr_el}"
     outdir="/tmp/${outdirbase}"
     tmpdir="/tmp/kat-tmplog-${hr_el}"
@@ -79,7 +82,7 @@ for el in "${seq[@]}"; do
 
         kubectl get pods --all-namespaces > "$tmpdir/pods.txt" 2>&1
         kubectl get svc --all-namespaces > "$tmpdir/svc.txt" 2>&1
-        kubectl logs -n kube-system kube-proxy > "$tmpdir/kube-proxy.txt" 2>&1
+        kubectl logs -n kube-system -l k8s-app=kube-proxy > "$tmpdir/kube-proxy.txt" 2>&1
 
         if [ -n "${AMBASSADOR_DEV}" ]; then
             docker ps -a > "$tmpdir/docker.txt" 2>&1
@@ -93,6 +96,9 @@ for el in "${seq[@]}"; do
     else
         echo "==== [$(date)] $hr_el ==== SUCCEEDED"
     fi
+
+    set -e
+    set +x
 done
 
 if (( ${#failed[@]} == 0 )); then
@@ -107,23 +113,19 @@ else
         mv /tmp/k8s-AmbassadorTest.yaml "$tmpdir"
     fi
 
-    for file in /tmp/kat-logs-*; do
-        if [ "$file" = '/tmp/kat-logs-*' ]; then
-            break
-        else
-            mv $file "$tmpdir"
-        fi
-    done
+    copy_if_present () {
+        pattern="$1"
+        dest="$2"
+        expanded="$(echo $pattern)"
 
-    for file in /tmp/kat-events-*; do
-        if [ "$file" = '/tmp/kat-events-*' ]; then
-            break
-        else
-            mv $file "$tmpdir"
+        if [ "$expanded" != "$pattern" ]; then
+            cp $pattern $dest
         fi
-    done
+    }
 
-    mv /tmp/kat-client* "$tmpdir"
+    copy_if_present '/tmp/kat-logs-*' "$tmpdir"
+    copy_if_present '/tmp/kat-events-*' "$tmpdir"
+    copy_if_present '/tmp/kat-client*' "$tmpdir"
 
     cp /tmp/teleproxy.log "$tmpdir"
     cp /etc/resolv.conf "$tmpdir"
