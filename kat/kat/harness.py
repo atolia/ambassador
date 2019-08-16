@@ -345,6 +345,9 @@ class Node(ABC):
         if not getattr(self, 'already_logged', False):
             self.already_logged = True
 
+            print(f'logging kube artifacts for {self.path.k8s}')
+            sys.stdout.flush()
+
             DEV = os.environ.get("AMBASSADOR_DEV", "0").lower() in ("1", "yes", "true")
 
             log_path = f'/tmp/kat-logs-{self.path.k8s}'
