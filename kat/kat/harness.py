@@ -339,6 +339,30 @@ class Node(ABC):
     def requirements(self):
         yield from ()
 
+    # log_kube_artifacts writes various logs about our underlying Kubernetes objects to
+    # a place where the artifact publisher can find them. See run-tests.sh.
+    def log_kube_artifacts(self):
+        if not getattr(self, 'already_logged', False):
+            self.already_logged = True
+
+            DEV = os.environ.get("AMBASSADOR_DEV", "0").lower() in ("1", "yes", "true")
+
+            log_path = f'/tmp/kat-logs-{self.path.k8s}'
+
+            if DEV:
+                os.system(f'docker logs {self.path.k8s} >{log_path} 2>&1')
+            else:
+                os.system(f'kubectl logs -n {self.namespace} {self.path.k8s} >{log_path} 2>&1')
+
+                event_path = f'/tmp/kat-events-{self.path.k8s}'
+
+                fs1 = f'involvedObject.name={self.path.k8s}'
+                fs2 = f'involvedObject.namespace={self.namespace}'
+
+                cmd = f'kubectl get events -o json --field-selector "{fs1}" --field-selector "{fs2}"'
+                os.system(f'echo ==== "{cmd}" >{event_path}')
+                os.system(f'{cmd} >>{event_path} 2>&1')
+
 
 class Test(Node):
 
@@ -502,20 +526,7 @@ class Result:
                 )
             else:
                 if self.query.expected != self.status:
-                    if not getattr(self.parent, 'already_logged', False):
-                        self.parent.already_logged = True
-
-                        log_path = f'/tmp/kat-logs-{self.parent.path.k8s}'
-                        os.system(f'kubectl logs -n {self.parent.namespace} {self.parent.path.k8s} >{log_path} 2>&1')
-
-                        event_path = f'/tmp/kat-events-{self.parent.path.k8s}'
-
-                        fs1 = f'involvedObject.name={self.parent.path.k8s}'
-                        fs2 = f'involvedObject.namespace={self.parent.namespace}'
-
-                        cmd = f'kubectl get events -o json --field-selector "{fs1}" --field-selector "{fs2}"'
-                        os.system(f'echo ==== "{cmd}" >{event_path}')
-                        os.system(f'{cmd} >>{event_path} 2>&1')
+                    self.parent.log_kube_artifacts()
 
                 assert self.query.expected == self.status, \
                        "%s: expected status code %s, got %s instead with error %s" % (
@@ -1138,19 +1149,11 @@ class Runner:
             _holdouts = holdouts.get(kind, [])
 
             if _holdouts:
-                DEV = os.environ.get("AMBASSADOR_DEV", "0").lower() in ("1", "yes", "true")
-
                 print(f'  {kind}:')
 
                 for node, text in _holdouts:
-                    print(f'\n================================ LOGS FOR {node.path.k8s} ({text})')
-
-                    if DEV:
-                        os.system(f'docker logs {node.path.k8s}')
-                    else:
-                        os.system(f'kubectl logs -n {node.namespace} {node.path.k8s}')
-
-                    print(f'================================ END LOGS FOR {node.path.k8s} ({text})\n')
+                    print(f'    {node.path.k8s} ({text})')
+                    node.log_kube_artifacts()
 
         assert False, "requirements not satisfied in %s seconds" % limit
 
