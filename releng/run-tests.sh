@@ -26,6 +26,8 @@ if [[ "$(docker images -q $AMBASSADOR_DOCKER_IMAGE 2> /dev/null)" == "" ]]; then
     fi
 fi
 
+export KAT_QUERY_LIMIT=5
+
 if [[ "$USE_KUBERNAUT" != "true" ]]; then
     ( cd "$ROOT"; bash "$HERE/test-warn.sh" )
 fi
